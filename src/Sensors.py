@@ -2,6 +2,16 @@ from time import sleep
 from mcculw import ul
 from mcculw.enums import *
 import math
+import pandas as pd
+
+
+# template of the dataframe for pandas datalogging
+data_template = {
+    'time':[],
+    'Millivolts':[],
+    'Voltage':[],
+    'Celsius':[],
+}
 
 # Board & Channel Constants
 BOARD_NUM = 0
@@ -27,7 +37,10 @@ def init_digital():
     # All 8 bits in Port 1 set as input by default -> set to output
     ul.d_config_port(BOARD_NUM, DigitalPortType.AUXPORT, DigitalIODirection.OUT)
 
-
+#initializes an empty dataframe based on given template
+def init_DataFrame(template):
+    df = pd.DataFrame(template)
+    return df
 
 ###### Set digital output DIO_0 to val (val is 1 for high and 0 for low)
 def digital_write(val):
@@ -36,31 +49,45 @@ def digital_write(val):
 
 
 
-###### Get analog input from CH0
+###### Get analog input from CH0 as mV
 def analog_read():
+    return ul.a_in(BOARD_NUM, CH_0, ULRange.BIP5VOLTS)
     # return input value from CH0
-    return ul.to_eng_units(BOARD_NUM, ULRange.BIP10VOLTS, ul.a_in(BOARD_NUM, CH_0, ULRange.BIP5VOLTS))
+    # return ul.to_eng_units(BOARD_NUM, ULRange.BIP10VOLTS, ul.a_in(BOARD_NUM, CH_0, ULRange.BIP5VOLTS))
+
+
 
 # convert analog voltage(mV) read to a temperature celsius
-def convert_volt_to_c(analog_input):
+def convert_mV_to_C(analog_input):
     base_voltage = 2230.8
+    #magic numbers from datasheet
     unknown = 13.582
     unknown2 = 0.00433
-    #function from spec sheet for lht87 sensors
-    converted_val = ((unknown-(math.sqrt(math.pow(unknown, 2) + 4 * unknown2 * (base_voltage - analog_input))))/(2 * -unknown2)) + 30
+    #equation 2 from spec sheet for lht87 sensors
+    converted_val = ((unknown-(math.sqrt(math.pow(unknown, 2) + 4 * unknown2 * (base_voltage - analog_input*1000))))/(2 * (-1 * unknown2))) + 30
     return converted_val
+
+
+
+# log one data sample to the main dataframe
+def log_data(dataframe):
+    mV_reading = analog_read()#avoid running more than 1 read for logging
+    data = {'time':pd.datetime.now(), 'Millivolts':mV_reading, 'Voltage':(mV_reading * 1000), 'Celsius':convert_mV_to_C(mV_reading)}
+    dataframe = dataframe.append(data, ignore_index = True)
+
+
 
 ### Main Function
 def main():
     init()
+    init_digital()
+    df = init_DataFrame(data_template)
 
 
-init_digital()
+    while (1):
+        log_data(df)
+        sleep(0.05)
 
-sleep(0.05)
-
-while (1):
-    print(analog_read())
 '''    
     digital_write(1)
     sleep(1)
