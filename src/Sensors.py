@@ -72,10 +72,15 @@ def convert_mV_to_C(analog_input):
 # log one data sample to the main dataframe
 def log_data(dataframe):
     mV_reading = analog_read()#avoid running more than 1 read for logging
-    data = {'time':pd.datetime.now(), 'Millivolts':mV_reading, 'Voltage':(mV_reading * 1000), 'Celsius':convert_mV_to_C(mV_reading)}
+    data = {'time':pd.datetime.now(), 'Millivolts':mV_reading, 'Voltage':(mV_reading), 'Celsius':convert_mV_to_C(mV_reading)}
+
     dataframe = dataframe.append(data, ignore_index = True)
+    return dataframe
 
-
+#return number of test intervals for time period inputted as seconds, sample_freq is time between samples
+def test_length(sample_freq):
+    raw_inp = int(input("enter test duration time (sec): "))
+    return int(raw_inp / sample_freq)
 
 ### Main Function
 def main():
@@ -83,10 +88,13 @@ def main():
     init_digital()
     df = init_DataFrame(data_template)
 
-
-    while (1):
-        log_data(df)
+    for i in range(test_length(0.05)):
         sleep(0.05)
+        df = log_data(df)
+        
+        
+    #convert to csv    
+    df.to_csv('./desktop/data.csv', index = False)
 
 '''    
     digital_write(1)
